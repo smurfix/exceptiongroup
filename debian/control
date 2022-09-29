@@ -1,0 +1,21 @@
+Source: exceptiongroup
+Maintainer: "Matthias Urlichs" <matthias@urlichs.de>
+Section: python
+Priority: optional
+Build-Depends: dh-python, python3-setuptools, python3-all, debhelper (>= 13),
+  python3-flit_scm,
+Standards-Version: 3.9.6
+Homepage: https://github.com/agronholm/exceptiongroup
+
+Package: python3-exceptiongroup
+Architecture: all
+Depends: ${misc:Depends}, ${python3:Depends},
+Description: Backport of PEP 654 (exception groups)
+  .. image:: https://github.com/agronholm/exceptiongroup/actions/workflows/test.yml/badge.svg
+    :target: https://github.com/agronholm/exceptiongroup/actions/workflows/test.yml
+    :alt: Build Status
+  .. image:: https://coveralls.io/repos/github/agronholm/exceptiongroup/badge.svg?branch=main
+    :target: https://coveralls.io/github/agronholm/exceptiongroup?branch=main
+    :alt: Code Coverage
+  .
+
