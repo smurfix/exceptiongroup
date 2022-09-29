@@ -14,3 +14,6 @@ __pycache__
 .local
 venv*/
 /src/exceptiongroup/_version.py
+
+# Debian packaging
+/debian/
