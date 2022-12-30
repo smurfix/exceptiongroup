@@ -9,17 +9,15 @@ jobs:
   pyright:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: 3.x
-    - uses: actions/cache@v2
+    - uses: actions/cache@v3
       with:
         path: ~/.cache/pip
         key: pip-pyright
-    - name: Work around a problem with pip 22.1
-      run: pip install "pip>=22.1.1"
     - name: Install dependencies
       run: pip install -e . pyright
     - name: Run pyright
@@ -29,22 +27,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11-dev", pypy-3.8]
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", pypy-3.8]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-    - uses: actions/cache@v2
+    - uses: actions/cache@v3
       with:
         path: ~/.cache/pip
         key: pip-test-${{ matrix.python-version }}-${{ matrix.os }}
-    - name: Work around a problem with pip 22.1
-      run: pip install "pip>=22.1.1"
     - name: Install dependencies
-      run: pip install .[test] coverage[toml] coveralls
+      run: pip install .[test] coveralls coverage[toml]
     - name: Test with pytest
       run: coverage run -m pytest
     - name: Upload Coverage

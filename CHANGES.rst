@@ -3,6 +3,43 @@ Version history
 
 This library adheres to `Semantic Versioning 2.0 <http://semver.org/>`_.
 
+**1.1.0**
+
+- Backported upstream fix for gh-99553 (custom subclasses of ``BaseExceptionGroup`` that
+  also inherit from ``Exception`` should not be able to wrap base exceptions)
+- Moved all initialization code to ``__new__()`` (thus matching Python 3.11 behavior)
+
+**1.0.4**
+
+- Fixed regression introduced in v1.0.3 where the code computing the suggestions would
+  assume that both the ``obj`` attribute of ``AttributeError`` is always available, even
+  though this is only true from Python 3.10 onwards
+  (#43; PR by Carl Friedrich Bolz-Tereick)
+
+**1.0.3**
+
+- Fixed monkey patching breaking suggestions (on a ``NameError`` or ``AttributeError``)
+  on Python 3.10 (#41; PR by Carl Friedrich Bolz-Tereick)
+
+**1.0.2**
+
+- Updated type annotations to match the ones in ``typeshed``
+
+**1.0.1**
+
+- Fixed formatted traceback missing exceptions beyond 2 nesting levels of
+  ``__context__`` or ``__cause__``
+
+**1.0.0**
+
+- Fixed
+  ``AttributeError: 'PatchedTracebackException' object has no attribute '__cause__'``
+  on Python 3.10 (only) when a traceback is printed from an exception where an exception
+  group is set as the cause (#33)
+- Fixed a loop in exception groups being rendered incorrectly (#35)
+- Fixed the patched formatting functions (``format_exception()``etc.) not passing the
+  ``compact=True`` flag on Python 3.10 like the original functions do
+
 **1.0.0rc9**
 
 - Added custom versions of several ``traceback``  functions that work with exception

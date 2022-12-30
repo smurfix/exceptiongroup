@@ -88,6 +88,70 @@ def test_exceptionhook(capsys: CaptureFixture) -> None:
     )
 
 
+def test_exceptiongroup_as_cause(capsys: CaptureFixture) -> None:
+    try:
+        raise Exception() from ExceptionGroup("", (Exception(),))
+    except Exception as exc:
+        sys.excepthook(type(exc), exc, exc.__traceback__)
+
+    lineno = test_exceptiongroup_as_cause.__code__.co_firstlineno
+    module_prefix = "" if sys.version_info >= (3, 11) else "exceptiongroup."
+    output = capsys.readouterr().err
+    assert output == (
+        f"""\
+  | {module_prefix}ExceptionGroup:  (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Exception
+    +------------------------------------
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "{__file__}", line {lineno + 2}, in test_exceptiongroup_as_cause
+    raise Exception() from ExceptionGroup("", (Exception(),))
+Exception
+"""
+    )
+
+
+def test_exceptiongroup_loop(capsys: CaptureFixture) -> None:
+    e0 = Exception("e0")
+    eg0 = ExceptionGroup("eg0", (e0,))
+    eg1 = ExceptionGroup("eg1", (eg0,))
+
+    try:
+        raise eg0 from eg1
+    except ExceptionGroup as exc:
+        sys.excepthook(type(exc), exc, exc.__traceback__)
+
+    lineno = test_exceptiongroup_loop.__code__.co_firstlineno + 6
+    module_prefix = "" if sys.version_info >= (3, 11) else "exceptiongroup."
+    output = capsys.readouterr().err
+    assert output == (
+        f"""\
+  | {module_prefix}ExceptionGroup: eg1 (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Exception Group Traceback (most recent call last):
+    |   File "{__file__}", line {lineno}, in test_exceptiongroup_loop
+    |     raise eg0 from eg1
+    | {module_prefix}ExceptionGroup: eg0 (1 sub-exception)
+    +-+---------------- 1 ----------------
+      | Exception: e0
+      +------------------------------------
+
+The above exception was the direct cause of the following exception:
+
+  + Exception Group Traceback (most recent call last):
+  |   File "{__file__}", line {lineno}, in test_exceptiongroup_loop
+  |     raise eg0 from eg1
+  | {module_prefix}ExceptionGroup: eg0 (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Exception: e0
+    +------------------------------------
+"""
+    )
+
+
 def test_exceptionhook_format_exception_only(capsys: CaptureFixture) -> None:
     try:
         raise_excgroup()
@@ -213,6 +277,65 @@ def test_format_exception(
         )
 
 
+def test_format_nested(monkeypatch: MonkeyPatch) -> None:
+    if not patched:
+        # Block monkey patching, then force the module to be re-imported
+        del sys.modules["traceback"]
+        del sys.modules["exceptiongroup"]
+        del sys.modules["exceptiongroup._formatting"]
+        monkeypatch.setattr(sys, "excepthook", lambda *args: sys.__excepthook__(*args))
+
+    from exceptiongroup import format_exception
+
+    def raise_exc(max_level: int, level: int = 1) -> NoReturn:
+        if level == max_level:
+            raise Exception(f"LEVEL_{level}")
+        else:
+            try:
+                raise_exc(max_level, level + 1)
+            except Exception:
+                raise Exception(f"LEVEL_{level}")
+
+    try:
+        raise_exc(3)
+    except Exception as exc:
+        lines = format_exception(type(exc), exc, exc.__traceback__)
+
+    local_lineno = test_format_nested.__code__.co_firstlineno + 20
+    raise_exc_lineno1 = raise_exc.__code__.co_firstlineno + 2
+    raise_exc_lineno2 = raise_exc.__code__.co_firstlineno + 5
+    raise_exc_lineno3 = raise_exc.__code__.co_firstlineno + 7
+    assert isinstance(lines, list)
+    assert "".join(lines) == (
+        f"""\
+Traceback (most recent call last):
+  File "{__file__}", line {raise_exc_lineno2}, in raise_exc
+    raise_exc(max_level, level + 1)
+  File "{__file__}", line {raise_exc_lineno1}, in raise_exc
+    raise Exception(f"LEVEL_{{level}}")
+Exception: LEVEL_3
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "{__file__}", line {raise_exc_lineno2}, in raise_exc
+    raise_exc(max_level, level + 1)
+  File "{__file__}", line {raise_exc_lineno3}, in raise_exc
+    raise Exception(f"LEVEL_{{level}}")
+Exception: LEVEL_2
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "{__file__}", line {local_lineno}, in test_format_nested
+    raise_exc(3)
+  File "{__file__}", line {raise_exc_lineno3}, in raise_exc
+    raise Exception(f"LEVEL_{{level}}")
+Exception: LEVEL_1
+"""
+    )
+
+
 def test_format_exception_only(
     patched: bool, old_argstyle: bool, monkeypatch: MonkeyPatch
 ) -> None:
@@ -332,3 +455,76 @@ def test_print_exc(
     +------------------------------------
 """
         )
+
+
+@pytest.mark.skipif(
+    not hasattr(NameError, "name") or sys.version_info[:2] == (3, 11),
+    reason="only works if NameError exposes the missing name",
+)
+def test_nameerror_suggestions(
+    patched: bool, monkeypatch: MonkeyPatch, capsys: CaptureFixture
+) -> None:
+    if not patched:
+        # Block monkey patching, then force the module to be re-imported
+        del sys.modules["traceback"]
+        del sys.modules["exceptiongroup"]
+        del sys.modules["exceptiongroup._formatting"]
+        monkeypatch.setattr(sys, "excepthook", lambda *args: sys.__excepthook__(*args))
+
+    from exceptiongroup import print_exc
+
+    try:
+        folder
+    except NameError:
+        print_exc()
+        output = capsys.readouterr().err
+        assert "Did you mean" in output and "'filter'?" in output
+
+
+@pytest.mark.skipif(
+    not hasattr(AttributeError, "name") or sys.version_info[:2] == (3, 11),
+    reason="only works if AttributeError exposes the missing name",
+)
+def test_nameerror_suggestions_in_group(
+    patched: bool, monkeypatch: MonkeyPatch, capsys: CaptureFixture
+) -> None:
+    if not patched:
+        # Block monkey patching, then force the module to be re-imported
+        del sys.modules["traceback"]
+        del sys.modules["exceptiongroup"]
+        del sys.modules["exceptiongroup._formatting"]
+        monkeypatch.setattr(sys, "excepthook", lambda *args: sys.__excepthook__(*args))
+
+    from exceptiongroup import print_exception
+
+    try:
+        [].attend
+    except AttributeError as e:
+        eg = ExceptionGroup("a", [e])
+        print_exception(eg)
+        output = capsys.readouterr().err
+        assert "Did you mean" in output and "'append'?" in output
+
+
+def test_bug_suggestions_attributeerror_no_obj(
+    patched: bool, monkeypatch: MonkeyPatch, capsys: CaptureFixture
+) -> None:
+    if not patched:
+        # Block monkey patching, then force the module to be re-imported
+        del sys.modules["traceback"]
+        del sys.modules["exceptiongroup"]
+        del sys.modules["exceptiongroup._formatting"]
+        monkeypatch.setattr(sys, "excepthook", lambda *args: sys.__excepthook__(*args))
+
+    from exceptiongroup import print_exception
+
+    class NamedAttributeError(AttributeError):
+        def __init__(self, name: str) -> None:
+            self.name: str = name
+
+    try:
+        raise NamedAttributeError(name="mykey")
+    except AttributeError as e:
+        print_exception(e)  # does not crash
+        output = capsys.readouterr().err
+        assert "NamedAttributeError" in output
