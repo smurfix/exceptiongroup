@@ -1,3 +1,9 @@
+exceptiongroup (1.1.0-1) unstable; urgency=medium
+
+  * Merge
+
+ -- Matthias Urlichs <matthias@urlichs.de>  Fri, 30 Dec 2022 21:14:53 +0100
+
 exceptiongroup (1.0.0rc9-1) unstable; urgency=medium
 
   * Initial Debianization.
