@@ -1,6 +1,6 @@
 [build-system]
-requires = ["flit_scm"]
-build-backend = "flit_scm:buildapi"
+build-backend = "setuptools.build_meta"
+requires = [ "setuptools", "wheel", "setuptools-scm",]
 
 [project]
 name = "exceptiongroup"
