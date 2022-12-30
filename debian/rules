@@ -12,3 +12,5 @@ override_dh_usrlocal:
 	    mv debian/python3-exceptiongroup/usr/local/bin/* debian/python3-exceptiongroup/usr/bin; \
 	fi
 
+override_dh_auto_test:
+	: no test today
